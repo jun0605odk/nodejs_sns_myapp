@@ -1,0 +1,44 @@
+<%- include('include/header'); %>
+
+<ul id="messages"></ul>
+<div id="ad"></div>
+<form action="">
+  <select id="rooms">
+    <option value="room-1">Room 1</option>
+    <option value="room-2">Room 2</option>
+  </select>
+  <input id="user_name" autocomplete="off" /><input id="msg" autocomplete="off" /><button>Send</button>
+</form>
+<!-- ↓の書き方に修正しました <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script> -->
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
+  $(function () {
+    var home_url = "<%= home_url %>";
+    // console.log(home_url);
+    var chat = io(home_url + '/chat'),
+        ad   = io(home_url + '/ad');
+        
+    $('form').submit(function(e){
+      // e.preventDefault();
+      chat.json.emit('chat message from client', {
+        room: $('#rooms').val(),
+        msg:  $('#msg').val(),
+        name: $('#user_name').val()
+      });
+      $('#msg').val('');
+      return false;
+    });
+    chat.on('chat message from server', function(data){
+      $('#messages').append($('<li>').text(data));
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    ad.on('chat message from server', function(data){
+      $('#ad').text(data);
+    });
+
+  });
+</script>
+
+<%- include('include/footer'); %>
