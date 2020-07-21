@@ -1,0 +1,27 @@
+<%- include('include/header'); %>
+
+<style>
+.btn-square {
+  display: inline-block;
+  padding: 0.5em 1em;
+  text-decoration: none;
+  background: #668ad8;/*ボタン色*/
+  color: #FFF;
+  border-bottom: solid 4px #627295;
+  border-radius: 3px;
+}
+.btn-square:active {
+  /*ボタンを押したとき*/
+  -webkit-transform: translateY(4px);
+  transform: translateY(4px);/*下に動く*/
+  border-bottom: none;/*線を消す*/
+}
+</style>
+
+<h1><a href="<%= home_url %>/room/test">ルーム選択へ</h1>
+<br>
+<a href="<%= login_url %>" class="btn-square">ログイン</a>
+<a href="<%= signup_url %>" class="btn-square">会員登録</a>
+
+
+<%- include('include/footer'); %>
