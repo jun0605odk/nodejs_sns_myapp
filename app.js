@@ -17,10 +17,11 @@ function make_default_data(req) {
     var sns_user_name = "ゲスト";
   };
   var default_data = {
-    home_url:   home_url,
-    login_url:  home_url + '/log-in',
-    signup_url: home_url + '/sign-up',
-    login_status: "こんにちは " + sns_user_name + " さん"
+    home_url:      home_url,
+    login_url:     home_url + '/log-in',
+    signup_url:    home_url + '/sign-up',
+    make_room_url: home_url + '/room/make',
+    login_status:  "こんにちは " + sns_user_name + " さん"
   };
   return default_data;
 };
@@ -47,7 +48,7 @@ var cookie_obj = {
   //domain: '', 
   secure: false, 
   httpOnly: false, 
-  //encode: encodeURIComponent, 
+  encode: encodeURI, 
   //signed: false
 };
 
@@ -93,6 +94,8 @@ app.get('/sign-up', function(req, res){
 app.post('/sign-up-done', function(req, res) {
   console.log('receiving data ...');
   console.log('body is ',req.body);
+  var post_req = req;
+  var post_res = res;
 
   const query = {
     text: 'INSERT INTO member (name, email, tel, gender, password) VALUES($1, $2, $3, $4, $5)',
@@ -100,11 +103,16 @@ app.post('/sign-up-done', function(req, res) {
   }
   
   conected_client.query(query)
-    .then(res => console.log(res))
-    .catch(e => console.error(e.stack))
+    .then(res => {
+      console.log(res)
+      post_res.cookie('sns_user_name', post_req.body.name, cookie_obj)
+      post_res.cookie('sns_user_email', post_req.body.email, cookie_obj)
+    })
+    .catch(e => {
+      console.log("db関連のエラー")
+      console.error(e.stack)
+    });
   
-  res.cookie('sns_user_name',  req.body.name,  cookie_obj );
-  res.cookie('sns_user_email', req.body.email, cookie_obj );
 
   var data = {
     post_name:   req.body.name,
@@ -126,6 +134,7 @@ app.get('/log-in', function(req, res){
 });
 
 app.post('/log-in', function(req, res) {
+
   console.log('receiving data ...');
   console.log('body is ',req.body);
   var post_res = res;
@@ -157,21 +166,74 @@ app.post('/log-in', function(req, res) {
 
 // room
 app.get('/room', function(req, res){
-  default_data = make_default_data(req);
-  res.render('room-select', default_data);
+  var post_req = req;
+  var post_res = res;
+
+  const query = {
+    text: 'SELECT * FROM room'
+  };
+
+  conected_client.query(query)
+    .then(res => {
+      console.log(res);
+      // if (res.rowCount!=0) {
+        
+      // } else {
+        
+      // }
+      default_data = make_default_data(post_req);
+      var room_data = {room_data:res.rows};
+      default_data = { ...default_data, ...room_data };
+      console.log("******************");
+      console.log(default_data);
+      console.log("******************");
+      post_res.render('room-select', default_data);
+    })
+    .catch(e => console.error(e.stack))
+  
 });
 
-app.get('/room-make', function(req, res){
-  default_data = make_default_data(req);
-  res.render('room-make', default_data);
+app.get('/room/make', function(req, res){
+  if(!req.cookies.sns_user_name){
+    error_msg = "ゲストアカウントではルームの作成はできません。<br>ログインしてから再度このページにアクセスしてください";
+    res.render('log-in', {home_url:home_url,error_msg:error_msg});
+  }else{
+    default_data = make_default_data(req);
+    res.render('room-make', default_data);
+  };
 });
 
-app.get('/room/:room_name', function(req, res){
-  var home_url = "http://localhost:" + port;
-  res.render('room', {
-    home_url:home_url,
-    room_name:req.params.room_name
-  });
+app.post('/room/make', function(req, res){
+  console.log('/room/make');
+  console.log('receiving data ...');
+  console.log('body is ',req.body);
+  var post_req = req;
+  var post_res = res;
+
+  //ToDo:sns_user_nameに値がなかった場合のエラー処理を追記
+  //ToDo:作成予定のルーム名が既に作成されていた場合のエラー処理を追記
+  const query = {
+    text: 'INSERT INTO room (creater_name, creater_email, room_name, post_time) VALUES($1, $2, $3, $4)',
+    values: [req.cookies.sns_user_name, req.cookies.sns_user_email, req.body.room_name, new Date()],
+  };
+
+  conected_client.query(query)
+    .then(res => {
+      console.log(res)
+      post_res.redirect(home_url + '/room')
+    })
+    .catch(e => {
+      console.error(e.stack)
+      post_res.redirect(home_url + '/room/make')
+    });
+
+});
+
+app.get('/room/name/:room_name', function(req, res){
+  default_data = make_default_data(req);
+  var room_data = {room_name:req.params.room_name};
+  default_data = { ...default_data, ...room_data };
+  res.render('room', default_data);
 });
 
 

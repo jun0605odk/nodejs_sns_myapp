@@ -1,18 +1,38 @@
 <%- include('include/header'); %>
 
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font: 13px Helvetica, Arial; }
-  form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-  #user_name form input { border: 0; padding: 10px; width: 30%; margin-right: .5%; }
-  #msg form input { border: 0; padding: 10px; width: 60%; margin-right: .5%; }
-  form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-  #messages { list-style-type: none; margin: 0; padding: 0; }
-  #messages li { padding: 5px 10px; }
-  #messages li:nth-child(odd) { background: #eee; }
-  #messages { margin-bottom: 40px }
+.btn-square {
+  display: inline-block;
+  padding: 0.5em 1em;
+  text-decoration: none;
+  background: #668ad8;/*ボタン色*/
+  color: #FFF;
+  border-bottom: solid 4px #627295;
+  border-radius: 3px;
+}
+.btn-square:active {
+  /*ボタンを押したとき*/
+  -webkit-transform: translateY(4px);
+  transform: translateY(4px);/*下に動く*/
+  border-bottom: none;/*線を消す*/
+}
 </style>
 
+<script>
+console.log("<%= room_data[0].id %>");
+</script>
+
+
 <h1>ルーム選択</h1>
+<br>
+<a href="<%= make_room_url %>" class="btn-square">新しいルームを作成する</a>
+<br>
+<h3>ルーム一覧</h3>
+<ul>
+  <% room_data.forEach(function (value, index) { %>
+  <!-- <li>値は<%= value.room_name %>で、インデックスは<%= index %>で出力</li> -->
+  <li><a href="<%= home_url %>/room/name/<%= value.room_name %>"><%= value.room_name %></a></li>
+  <% }); %>
+</ul>
 
 <%- include('include/footer'); %>
