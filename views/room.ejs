@@ -5,50 +5,155 @@
   body { font: 13px Helvetica, Arial; }
   form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
   #user_name form input { border: 0; padding: 10px; width: 30%; margin-right: .5%; }
-  #msg form input { border: 0; padding: 10px; width: 60%; margin-right: .5%; }
+  #msg form input { border: 0; padding: 10px; width: 100%; margin-right: .5%; }
   form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
   #messages { list-style-type: none; margin: 0; padding: 0; }
   #messages li { padding: 5px 10px; }
   #messages li:nth-child(odd) { background: #eee; }
   #messages { margin-bottom: 40px }
+
+
+
+  /* 全体の枠 */
+#chat_box {
+	background-color:rgb(113,147,193); /* LINEっぽい背景色 */
+	padding:1em;
+	overflow:auto;
+}
+/* 左のトークボックス */
+#chat_box .chat_other:before { /* 左の丸アイコン */
+	content:'';
+	display:inline-block;
+	/*width:50px;
+	height:50px;*/
+	vertical-align:top;
+	border-radius:50%;
+	background-size:cover;
+	background-image:url("../../src/chat_icon1.png"); /* ←アイコンはここを変更 */
+}
+#chat_box .chat_other:before {  /* 左ふきだしの左三角を描画 */
+	content: '';
+	position:absolute;
+	top:8px;
+	left:-20px;
+	border: 12px solid transparent;
+	border-right:12px solid white;
+}
+#chat_box .chat_other { /* 左ふきだしの本体 */
+	/* display:inline-block; */
+	position:relative;
+	background-color:white;
+	border-radius:10px;
+	padding:10px;
+	margin: 10px 10px 10px 10px;
+}
+/* 右のトークボックス */
+#chat_box .chat_mine:after { /* 右の丸アイコン */
+	content:'';
+	display:inline-block;
+	/*width:50px;
+	height:50px;*/
+	vertical-align:top;
+	border-radius:50%;
+	background-size:cover;
+	background-position:-10px;
+	background-image:url("../../src/chat_icon2.png");  /* ←アイコンはここを変更 */
+}
+#chat_box .chat_mine {
+	/* float:right; /* 右のふきだしは全体的に右寄せ */
+  text-align: right;
+	margin-top:1em;
+}
+#chat_box .chat_mine:after { /* 右ふきだしの右三角を描画 */
+	content: '';
+	position:absolute;
+	top:8px;
+	right:-20px;
+	border: 12px solid transparent;
+	border-left:12px solid #85e249;
+}
+#chat_box .chat_mine { /* 右ふきだしの本体 */
+	/* display:inline-block; */
+	position:relative;
+	background-color:#85e249;
+	border-radius:10px;
+	padding:10px;
+	margin: 10px 10px 10px 10px;
+}
 </style>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
+
+
+
 
 <br>
 <h1><%= room_name %></h1>
-<ul id="messages"></ul>
+
 <div id="ad"></div>
+
+<div id="chat_box"></div>
+
+<div id="old_chat_box"></div>
+
+
 <form action="">
-  <select id="rooms">
-    <option value="room-1">Room 1</option>
-    <option value="room-2">Room 2</option>
-  </select>
-  <input id="user_name" autocomplete="off" /><input id="msg" autocomplete="off" /><button>Send</button>
+  <input id="chat_txt" autocomplete="off"><button>投稿</button>
 </form>
-<!-- ↓の書き方に修正しました <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script> -->
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
 <script>
+
+  // ページ読み込み時に実行
   $(function () {
     var home_url = "<%= home_url %>";
-    // console.log(home_url);
-    var chat = io(home_url + '/chat'),
+    console.log(home_url);
+    var chat = io(home_url + '/chat'),    
         ad   = io(home_url + '/ad');
+
+    //入室時の処理
+    chat.json.emit('client connection', {
+      user_name:  "<%= sns_user_name %>",
+      user_email: "<%= sns_user_email %>",
+      room:       "<%= room_name %>",
+      post_time:  new Date()
+    });
         
+    //チャット送信時の処理
     $('form').submit(function(e){
       // e.preventDefault();
       chat.json.emit('chat message from client', {
-        room: $('#rooms').val(),
-        msg:  $('#msg').val(),
-        name: $('#user_name').val()
+        user_name:  "<%= sns_user_name %>",
+        user_email: "<%= sns_user_email %>",
+        room:       "<%= room_name %>",
+        chat_txt:   $('#chat_txt').val(),
+        post_time:  new Date()
       });
-      $('#msg').val('');
+      $('#chat_txt').val('');
       return false;
     });
+
+    // チャット受信時の処理
+    //メールアドレスが公開されてしまう脆弱性あり
     chat.on('chat message from server', function(data){
-      $('#messages').append($('<li>').text(data));
+      if(data.user_email=="<%= sns_user_email %>") {
+        $('#chat_box').append($('<p class="chat_mine">').text(data.chat_txt));
+      } else {
+        $('#chat_box').append($('<p class="chat_other">').text(data.chat_txt));
+      }
       window.scrollTo(0, document.body.scrollHeight);
     });
 
+    chat.on('old chat message from server', function(data){
+      if(data.user_email=="<%= sns_user_email %>") {
+        $('#old_chat_box').append($('<p class="chat_mine">').text(data.chat_txt));
+      } else {
+        $('#old_chat_box').append($('<p class="chat_other">').text(data.chat_txt));
+      }
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    // 広告受信時の処理
     ad.on('chat message from server', function(data){
       $('#ad').text(data);
     });

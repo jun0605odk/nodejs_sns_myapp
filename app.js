@@ -12,16 +12,20 @@ var home_url = "http://localhost:" + port;
 
 function make_default_data(req) {
   if(req.cookies.sns_user_name){
-    var sns_user_name = req.cookies.sns_user_name;
+    var sns_user_name  = req.cookies.sns_user_name;
+    var sns_user_email = req.cookies.sns_user_email;
   }else{
-    var sns_user_name = "ゲスト";
+    var sns_user_name  = "ゲスト";
+    var sns_user_email = "";
   };
   var default_data = {
-    home_url:      home_url,
-    login_url:     home_url + '/log-in',
-    signup_url:    home_url + '/sign-up',
-    make_room_url: home_url + '/room/make',
-    login_status:  "こんにちは " + sns_user_name + " さん"
+    home_url:       home_url,
+    login_url:      home_url + '/log-in',
+    signup_url:     home_url + '/sign-up',
+    make_room_url:  home_url + '/room/make',
+    login_status:   "こんにちは " + sns_user_name + " さん",
+    sns_user_name:  sns_user_name,
+    sns_user_email: sns_user_email
   };
   return default_data;
 };
@@ -83,12 +87,8 @@ app.get('/', function(req, res){
 
 
 app.get('/sign-up', function(req, res){
-  var data = {
-    home_url:   home_url,
-    login_url:  home_url + '/log-in',
-    signup_url: home_url + '/sign-up',
-  };
-   res.render('sign-up', data);
+  default_data = make_default_data(req);
+  res.render('sign-up', default_data);
 });
 
 app.post('/sign-up-done', function(req, res) {
@@ -233,29 +233,85 @@ app.get('/room/name/:room_name', function(req, res){
   default_data = make_default_data(req);
   var room_data = {room_name:req.params.room_name};
   default_data = { ...default_data, ...room_data };
+  console.log("******************");
+  console.log(default_data);
+  console.log("******************");
   res.render('room', default_data);
 });
 
 
 
+// ***********
+// Websocket
+// ***********
+
 // chat
 var chat = io.of('/chat');
 chat.on('connection', function(socket){
-  socket.on('chat message from client', function(data){
+
+
+  socket.on('client connection', function(data){
     socket.join(data.room);
-    socket.client_name = data.name;
-    //console.log(data.room); 
-    //console.log(socket.client_name);
-    //console.log(data.msg);
-    chat.in(data.room).emit('chat message from server', socket.client_name + 'さんが入室しました');
-    chat.in(data.room).emit('chat message from server', '[' + socket.client_name + '] : ' + data.msg);
+    socket.client_name = data.user_name;
+    console.log(data);
+    chat.to(socket.id).emit('chat message from server', {chat_txt: 'あなたは ' + socket.client_name + ' として入室しました'});
+    chat.in(data.room).emit('chat message from server', {chat_txt: socket.client_name + 'さんが入室しました'});
+
+
+    var serch_date = new Date();
+    serch_date.setDate(serch_date.getDate() - 7);
+    const query = {
+      text: 'SELECT * FROM chat where room=$1 AND post_time>=$2',
+      values: [data.room, serch_date],
+    };
+
+    conected_client.query(query)
+    .then(res => {
+      console.log("*****old-chat-data*****");
+      console.log(res);
+      console.log("*****old-chat-data*****");
+      if (res.rowCount!=0) {
+        // console.log(res.rows[0].chat_txt);
+        res.rows.forEach((elememt, index) => {
+          console.log(`${index}: ${elememt.chat_txt}`);
+          chat.to(socket.id).emit('old chat message from server', {chat_txt: `${elememt.chat_txt}` });
+        });
+      }
+    })
+    .catch(e => console.error(e.stack))
+
   });
+
+
+  socket.on('chat message from client', function(data){
+
+    const query = {
+      text: 'INSERT INTO chat (user_name, user_email, room, chat_txt, post_time) VALUES($1, $2, $3, $4, $5)',
+      values: [data.user_name, data.user_email, data.room, data.chat_txt, data.post_time],
+    };
+
+    conected_client.query(query)
+    .then(res => {
+      socket.client_name = data.user_name;
+      console.log(data);
+      chat.in(data.room).emit('chat message from server', data);
+    })
+    .catch(e => {
+      console.error(e.stack)
+    });
+    
+  });
+
+
 });
 
+// 広告
 var ad = io.of('/ad');
 ad.on('connection', function(socket){
-  socket.emit('chat message from server', 'Today : ' + new Date());
+  //socket.emit('chat message from server', 'Today : ' + new Date());
+  socket.emit('chat message from server', "※　ここに広告が入る　※");
 });
+
 
 http.listen(port, function(){
   console.log('listening on *:' + port);
